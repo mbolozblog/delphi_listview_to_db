@@ -1,0 +1,182 @@
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls,ComObj, Grids, ComCtrls, ExtCtrls, Buttons, DB,
+  ZAbstractRODataset, ZAbstractDataset, ZDataset, ZConnection, XPMan,
+  DBGridEhGrouping, ToolCtrlsEh, DBGridEhToolCtrls, GridsEh, DBAxisGridsEh,
+  DBGridEh, ADODB;
+
+type
+  Tfutama = class(TForm)
+    OpenDialog1: TOpenDialog;
+    StatusBar1: TStatusBar;
+    XPManifest1: TXPManifest;
+    pg: TPageControl;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
+    Panel1: TPanel;
+    Label2: TLabel;
+    Edit1: TEdit;
+    Button1: TButton;
+    bclr: TButton;
+    ListView1: TListView;
+    DBGridEh1: TDBGridEh;
+    bsv: TButton;
+    dsc: TDataSource;
+    con: TADOConnection;
+    qry: TADOQuery;
+    Panel2: TPanel;
+    Button2: TButton;
+    procedure Button1Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormActivate(Sender: TObject);
+    procedure bsvClick(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure ListView1Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+    procedure bacaexcel(SheetIndex:integer);
+
+  end;
+
+var
+  futama: Tfutama;
+
+
+implementation
+
+{$R *.dfm}
+
+Procedure Tfutama.bacaexcel(SheetIndex:integer);
+Var
+  Xlapp1, Sheet         :Variant ;
+  i, MaxRow, MaxCol,x,y :integer ;
+  Temp,Lokasi           :string;
+  Baris                 :TListItem;
+begin
+  Lokasi  := OpenDialog1.FileName;
+  XLApp1  := CreateOleObject('excel.application');
+  XLApp1.Workbooks.open(Lokasi) ;
+  Sheet   := XLApp1.WorkSheets[SheetIndex] ;
+  MaxRow  := Sheet.Usedrange.EntireRow.count ;
+  MaxCol  := sheet.Usedrange.EntireColumn.count;
+  ListView1.Columns.Clear;
+
+  for i:=1 to MaxCol do
+  begin
+   ListView1.Columns.Add.Caption:=Sheet.Cells.Item[1,i].Value;
+  end;
+  for x:=2 to MaxRow do
+  begin
+   Baris:=ListView1.Items.add;
+   Baris.Caption:=Sheet.Cells.Item[x,1];
+   for y:=2 to MaxCol do
+      begin
+       Baris.SubItems.Add('');
+       Temp:=Sheet.Cells.Item[x,y];
+       ListView1.Items[x-2].SubItems.Strings[y-2]:=Temp
+      end;
+  end;
+ XLApp1.Workbooks.Close;
+end;
+
+
+procedure Tfutama.Button1Click(Sender: TObject);
+var i : integer;
+begin
+ if OpenDialog1.Execute then
+  begin
+    Edit1.Text:=OpenDialog1.FileName;
+    bacaexcel(1);
+      for i:=0 to ListView1.Columns.Count-1 do
+      begin
+        ListView1.Columns[i].Width :=-2;
+      end;
+  end;
+end;
+
+procedure Tfutama.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+ Action:=CaFree;
+end;
+
+procedure Tfutama.FormActivate(Sender: TObject);
+begin
+ Edit1.Clear;
+ ListView1.Clear;
+ qry.Open;
+ pg.TabIndex:=0;
+end;
+
+procedure Tfutama.bsvClick(Sender: TObject);
+var
+   i,x: integer;
+   lvitem :TListItem;
+begin
+  if ListView1.Items.Count=0 then
+  begin
+    ShowMessage('Data Masih Kosong...');
+    Exit;
+  end;
+
+  if ListView1.Columns.Count<>qry.FieldCount then
+  begin
+    ShowMessage('Jumlah kolom tidak sama...');
+    Exit;
+  end;
+try
+  for i:=1 to ListView1.Items.Count do
+  begin
+    ListView1.itemindex:= i - 1;
+    lvitem:= ListView1.Selected;
+      qry.Append;
+        if qry.Fields[0].DataType = ftDateTime then qry.Fields[0].Value:=StrToDate(lvitem.Caption)
+        else if qry.Fields[0].DataType = ftInteger then qry.Fields[0].Value:=StrToInt(lvitem.Caption)
+        else qry.Fields[0].Value:=lvitem.Caption;
+      for x:=1 to qry.FieldCount-1 do
+      begin
+        if qry.Fields[x].DataType = ftDateTime then qry.Fields[x].Value:=StrToDate(lvitem.SubItems[x-1])
+        else if qry.Fields[x].DataType = ftInteger then qry.Fields[x].Value:=StrToInt(lvitem.SubItems[x-1])
+        else qry.Fields[x].Value:=lvitem.SubItems[x-1];
+      end;
+      qry.Post;
+  end;
+  pg.TabIndex:=1;
+  ListView1.Clear;
+  ShowMessage('Data berhasil dipindahkan...');
+except
+ShowMessage('Data gagal dipindahkan...');
+end;
+end;
+
+
+procedure Tfutama.Button2Click(Sender: TObject);
+begin
+  qry.Close;
+  qry.SQL.Clear;
+  qry.SQL.Add('Delete from siswa');
+  qry.ExecSQL;
+ShowMessage('Data dikosongkan...');
+  qry.Close;
+  qry.SQL.Clear;
+  qry.SQL.Add('Select * from siswa');
+  qry.Open;
+end;
+
+procedure Tfutama.ListView1Click(Sender: TObject);
+begin
+ShowMessage('List Item index = '+IntToStr(ListView1.ItemIndex));
+end;
+
+procedure Tfutama.Button3Click(Sender: TObject);
+begin
+ListView1.ItemIndex:=3;
+end;
+
+end.
